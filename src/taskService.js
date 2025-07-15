@@ -103,18 +103,34 @@ export const requestNotificationPermission = async () => {
 }
 
 // 通知を送信
-export const sendNotification = (title, body) => {
+export const sendNotification = async (title, body) => {
   console.log('通知送信試行:', { title, body, permission: Notification.permission })
   
   if (Notification.permission === 'granted') {
     try {
-      // まずは通常のブラウザ通知で確実に送信
+      // スマホ・PWA環境ではService Worker経由で通知
+      if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.ready
+        if (registration && registration.showNotification) {
+          await registration.showNotification(title, {
+            body,
+            icon: '/vite.svg',
+            badge: '/vite.svg',
+            requireInteraction: true,
+            vibrate: [200, 100, 200]
+          })
+          console.log('Service Worker通知送信成功')
+          return
+        }
+      }
+      
+      // PCの通常ブラウザ環境では直接通知
       new Notification(title, {
         body,
         icon: '/vite.svg',
         requireInteraction: true
       })
-      console.log('通知送信成功')
+      console.log('通常の通知送信成功')
     } catch (error) {
       console.error('通知送信エラー:', error)
     }
