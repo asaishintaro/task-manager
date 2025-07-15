@@ -17,7 +17,8 @@ export const addTask = async (task) => {
   try {
     const docRef = await addDoc(collection(db, COLLECTION_NAME), {
       ...task,
-      createdAt: new Date()
+      createdAt: new Date(),
+      dueDate: task.dueDate || null
     })
     return docRef.id
   } catch (error) {
@@ -57,13 +58,56 @@ export const subscribeToTasks = (callback) => {
   return onSnapshot(q, (snapshot) => {
     const tasks = []
     snapshot.forEach((doc) => {
+      const data = doc.data()
       tasks.push({
         id: doc.id,
-        ...doc.data()
+        ...data,
+        dueDate: data.dueDate ? data.dueDate.toDate() : null
       })
     })
     callback(tasks)
   }, (error) => {
     console.error('タスクの監視に失敗しました:', error)
   })
+}
+
+// 期限チェック関数
+export const checkDueTasks = (tasks) => {
+  const now = new Date()
+  const overdueTasks = []
+  const todayTasks = []
+  
+  tasks.forEach(task => {
+    if (task.dueDate && !task.completed) {
+      const timeUntilDue = task.dueDate.getTime() - now.getTime()
+      const hoursUntilDue = timeUntilDue / (1000 * 60 * 60)
+      
+      if (timeUntilDue < 0) {
+        overdueTasks.push(task)
+      } else if (hoursUntilDue <= 24) {
+        todayTasks.push(task)
+      }
+    }
+  })
+  
+  return { overdueTasks, todayTasks }
+}
+
+// 通知許可をリクエスト
+export const requestNotificationPermission = async () => {
+  if ('Notification' in window) {
+    const permission = await Notification.requestPermission()
+    return permission === 'granted'
+  }
+  return false
+}
+
+// 通知を送信
+export const sendNotification = (title, body) => {
+  if (Notification.permission === 'granted') {
+    new Notification(title, {
+      body,
+      icon: '/vite.svg'
+    })
+  }
 }

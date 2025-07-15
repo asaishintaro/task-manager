@@ -20,10 +20,15 @@
 .task-input-container {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   padding: 1rem;
   background-color: #f8f9fa;
   border-radius: 8px;
+}
+
+.due-date-container {
+  margin-bottom: 2rem;
+  padding: 0 1rem;
 }
 
 .task-input {
@@ -55,6 +60,29 @@
   background-color: #0056b3;
 }
 
+.date-toggle-button {
+  padding: 0.75rem;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.date-toggle-button:hover {
+  background-color: #5a6268;
+}
+
+.due-date-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
 .task-list {
   list-style: none;
   padding: 0;
@@ -62,7 +90,7 @@
 
 .task-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
   padding: 1rem;
   margin-bottom: 0.5rem;
@@ -72,14 +100,31 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+.task-item.overdue {
+  border-left: 4px solid #dc3545;
+  background-color: #f8d7da;
+}
+
+.task-item.today {
+  border-left: 4px solid #ffc107;
+  background-color: #fff3cd;
+}
+
 .task-checkbox {
   width: 18px;
   height: 18px;
   cursor: pointer;
+  margin-top: 0.25rem;
+}
+
+.task-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .task-text {
-  flex: 1;
   font-size: 1rem;
   color: #333;
   transition: color 0.2s;
@@ -88,6 +133,32 @@
 .task-text.completed {
   color: #6c757d;
   text-decoration: line-through;
+}
+
+.due-date {
+  font-size: 0.875rem;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.overdue-badge {
+  background-color: #dc3545;
+  color: white;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+.today-badge {
+  background-color: #ffc107;
+  color: #212529;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: bold;
 }
 
 .delete-button {

@@ -1,21 +1,47 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import { addTask, updateTask, removeTask, subscribeToTasks } from './taskService'
+import { 
+  addTask, 
+  updateTask, 
+  removeTask, 
+  subscribeToTasks,
+  checkDueTasks,
+  requestNotificationPermission,
+  sendNotification
+} from './taskService'
 
 function App() {
   const [tasks, setTasks] = useState([])
   const [inputValue, setInputValue] = useState('')
+  const [dueDateValue, setDueDateValue] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showDueDateInput, setShowDueDateInput] = useState(false)
 
   // Firestoreからタスクをリアルタイムで取得
   useEffect(() => {
     const unsubscribe = subscribeToTasks((firestoreTasks) => {
       setTasks(firestoreTasks)
       setLoading(false)
+      
+      // 期限チェックと通知
+      const { overdueTasks, todayTasks } = checkDueTasks(firestoreTasks)
+      
+      if (overdueTasks.length > 0) {
+        sendNotification('期限超過のタスクがあります', `${overdueTasks.length}件のタスクが期限切れです`)
+      }
+      
+      if (todayTasks.length > 0) {
+        sendNotification('今日が期限のタスクがあります', `${todayTasks.length}件のタスクが今日期限です`)
+      }
     })
 
     return () => unsubscribe()
+  }, [])
+
+  // 通知許可をリクエスト
+  useEffect(() => {
+    requestNotificationPermission()
   }, [])
 
   const handleAddTask = async () => {
@@ -24,10 +50,13 @@ function App() {
         setError(null)
         const newTask = {
           text: inputValue.trim(),
-          completed: false
+          completed: false,
+          dueDate: dueDateValue ? new Date(dueDateValue) : null
         }
         await addTask(newTask)
         setInputValue('')
+        setDueDateValue('')
+        setShowDueDateInput(false)
       } catch (error) {
         setError('タスクの追加に失敗しました')
       }
@@ -72,25 +101,57 @@ function App() {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder="新しいタスクを入力"
-          onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
+          onKeyPress={(e) => e.key === 'Enter' && !showDueDateInput && handleAddTask()}
         />
+        <button 
+          className="date-toggle-button"
+          onClick={() => setShowDueDateInput(!showDueDateInput)}
+        >
+          📅
+        </button>
         <button className="add-button" onClick={handleAddTask}>追加</button>
       </div>
+      {showDueDateInput && (
+        <div className="due-date-container">
+          <input 
+            type="datetime-local" 
+            className="due-date-input"
+            value={dueDateValue}
+            onChange={(e) => setDueDateValue(e.target.value)}
+            placeholder="期限を設定"
+          />
+        </div>
+      )}
       <ul className="task-list">
-        {tasks.map(task => (
-          <li key={task.id} className="task-item">
-            <input 
-              type="checkbox" 
-              className="task-checkbox"
-              checked={task.completed}
-              onChange={() => handleToggleTask(task.id, task.completed)}
-            />
-            <span className={`task-text ${task.completed ? 'completed' : ''}`}>
-              {task.text}
-            </span>
-            <button className="delete-button" onClick={() => handleDeleteTask(task.id)}>削除</button>
-          </li>
-        ))}
+        {tasks.map(task => {
+          const { overdueTasks, todayTasks } = checkDueTasks([task])
+          const isOverdue = overdueTasks.length > 0
+          const isToday = todayTasks.length > 0
+          
+          return (
+            <li key={task.id} className={`task-item ${isOverdue ? 'overdue' : ''} ${isToday ? 'today' : ''}`}>
+              <input 
+                type="checkbox" 
+                className="task-checkbox"
+                checked={task.completed}
+                onChange={() => handleToggleTask(task.id, task.completed)}
+              />
+              <div className="task-content">
+                <span className={`task-text ${task.completed ? 'completed' : ''}`}>
+                  {task.text}
+                </span>
+                {task.dueDate && (
+                  <div className="due-date">
+                    期限: {task.dueDate.toLocaleDateString('ja-JP')} {task.dueDate.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                    {isOverdue && <span className="overdue-badge">期限切れ</span>}
+                    {isToday && !isOverdue && <span className="today-badge">今日期限</span>}
+                  </div>
+                )}
+              </div>
+              <button className="delete-button" onClick={() => handleDeleteTask(task.id)}>削除</button>
+            </li>
+          )
+        })}
       </ul>
       {tasks.length === 0 && (
         <div className="empty-state">タスクがありません。新しいタスクを追加してください。</div>
