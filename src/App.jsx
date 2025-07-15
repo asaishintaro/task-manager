@@ -9,6 +9,7 @@ import {
   requestNotificationPermission,
   sendNotification
 } from './taskService'
+import notificationService from './notificationService'
 
 function App() {
   const [tasks, setTasks] = useState([])
@@ -43,6 +44,35 @@ function App() {
   useEffect(() => {
     requestNotificationPermission()
   }, [])
+
+  // 通知サービスの初期化
+  useEffect(() => {
+    if (tasks.length > 0) {
+      // 朝の通知をスケジュール
+      notificationService.scheduleMorningNotification(tasks)
+      
+      // ページの表示/非表示を監視
+      const handleVisibilityChange = () => {
+        notificationService.handleVisibilityChange(tasks)
+      }
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange)
+      
+      // Service Workerにバックグラウンドチェック開始を通知
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then((registration) => {
+          registration.active?.postMessage({
+            type: 'START_BACKGROUND_CHECK'
+          })
+        })
+      }
+      
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        notificationService.stopPeriodicCheck()
+      }
+    }
+  }, [tasks])
 
   const handleAddTask = async () => {
     if (inputValue.trim()) {

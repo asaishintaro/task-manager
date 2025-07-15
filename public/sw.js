@@ -84,3 +84,67 @@ self.addEventListener('notificationclick', (event) => {
     )
   }
 })
+
+// バックグラウンド同期
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'task-check') {
+    event.waitUntil(checkTasksInBackground())
+  }
+})
+
+// バックグラウンドでのタスクチェック
+async function checkTasksInBackground() {
+  try {
+    // Firebase から最新のタスクを取得
+    const response = await fetch('/api/tasks')
+    const tasks = await response.json()
+    
+    // 期限チェック
+    const now = new Date()
+    const overdueTasks = tasks.filter(task => 
+      task.dueDate && 
+      new Date(task.dueDate) < now && 
+      !task.completed
+    )
+    
+    const todayTasks = tasks.filter(task => {
+      if (!task.dueDate || task.completed) return false
+      const dueDate = new Date(task.dueDate)
+      const today = new Date()
+      return dueDate.toDateString() === today.toDateString()
+    })
+    
+    // 通知を送信
+    if (overdueTasks.length > 0) {
+      self.registration.showNotification('期限切れのタスクがあります！', {
+        body: `${overdueTasks.length}件のタスクが期限切れです`,
+        icon: '/vite.svg',
+        badge: '/vite.svg',
+        vibrate: [100, 50, 100],
+        requireInteraction: true
+      })
+    }
+    
+    if (todayTasks.length > 0) {
+      self.registration.showNotification('今日が期限のタスクがあります', {
+        body: `${todayTasks.length}件のタスクが今日期限です`,
+        icon: '/vite.svg',
+        badge: '/vite.svg',
+        vibrate: [100, 50, 100],
+        requireInteraction: true
+      })
+    }
+  } catch (error) {
+    console.error('バックグラウンドタスクチェックエラー:', error)
+  }
+}
+
+// 定期的なバックグラウンドチェック
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'START_BACKGROUND_CHECK') {
+    // 1時間ごとにバックグラウンドチェック
+    setInterval(() => {
+      checkTasksInBackground()
+    }, 60 * 60 * 1000)
+  }
+})
