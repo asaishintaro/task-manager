@@ -23,7 +23,7 @@ function App() {
 
   // Firestoreからタスクをリアルタイムで取得
   useEffect(() => {
-    const unsubscribe = subscribeToTasks((firestoreTasks) => {
+    const unsubscribe = subscribeToTasks(async (firestoreTasks) => {
       setTasks(firestoreTasks)
       setLoading(false)
       
@@ -33,12 +33,12 @@ function App() {
         
         if (overdueTasks.length > 0) {
           console.log('期限切れタスク:', overdueTasks)
-          sendNotification('期限超過のタスクがあります', `${overdueTasks.length}件のタスクが期限切れです`)
+          await sendNotification('期限超過のタスクがあります', `${overdueTasks.length}件のタスクが期限切れです`)
         }
         
         if (todayTasks.length > 0) {
           console.log('今日期限タスク:', todayTasks)
-          sendNotification('今日が期限のタスクがあります', `${todayTasks.length}件のタスクが今日期限です`)
+          await sendNotification('今日が期限のタスクがあります', `${todayTasks.length}件のタスクが今日期限です`)
         }
       }
     })
@@ -78,39 +78,48 @@ function App() {
     })
   }, [])
 
+  // スマホ・タブレット判定
+  const isMobile = () => {
+    const userAgent = navigator.userAgent.toLowerCase()
+    const isMobileDevice = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent)
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+    return isMobileDevice || isTouchDevice
+  }
+
   // 通知テスト機能
   const testNotification = async () => {
     console.log('通知テスト開始')
     console.log('Notification.permission:', Notification.permission)
+    console.log('isMobile:', isMobile())
     
     if (Notification.permission === 'granted') {
       try {
-        // シンプルな通知テスト
-        new Notification('テスト通知', {
-          body: '通知が正常に動作しています！',
-          icon: '/vite.svg'
-        })
-        console.log('通知送信成功')
-        setNotificationStatus('テスト送信済み - 通知を確認してください')
+        // スマホ・タブレットの場合は最初からService Worker経由で通知
+        if (isMobile() && 'serviceWorker' in navigator) {
+          console.log('スマホ検出 - Service Worker通知を使用')
+          const registration = await navigator.serviceWorker.ready
+          await registration.showNotification('テスト通知', {
+            body: '通知が正常に動作しています！',
+            icon: '/vite.svg',
+            badge: '/vite.svg',
+            requireInteraction: true,
+            vibrate: [200, 100, 200]
+          })
+          console.log('Service Worker通知送信成功')
+          setNotificationStatus('テスト送信済み (Service Worker) - 通知を確認してください')
+        } else {
+          // PC・デスクトップの場合は通常の通知
+          console.log('PC検出 - 通常の通知を使用')
+          new Notification('テスト通知', {
+            body: '通知が正常に動作しています！',
+            icon: '/vite.svg'
+          })
+          console.log('通常の通知送信成功')
+          setNotificationStatus('テスト送信済み - 通知を確認してください')
+        }
       } catch (error) {
         console.error('通知作成エラー:', error)
         setNotificationStatus('通知作成エラー: ' + error.message)
-        
-        // スマホの場合はService Worker経由で再試行
-        if ('serviceWorker' in navigator) {
-          try {
-            const registration = await navigator.serviceWorker.ready
-            await registration.showNotification('テスト通知', {
-              body: '通知が正常に動作しています！',
-              icon: '/vite.svg'
-            })
-            console.log('Service Worker通知送信成功')
-            setNotificationStatus('テスト送信済み (Service Worker) - 通知を確認してください')
-          } catch (swError) {
-            console.error('Service Worker通知エラー:', swError)
-            setNotificationStatus('Service Worker通知エラー: ' + swError.message)
-          }
-        }
       }
     } else if (Notification.permission === 'default') {
       // 再度許可をリクエスト

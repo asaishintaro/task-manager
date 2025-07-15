@@ -102,33 +102,52 @@ export const requestNotificationPermission = async () => {
   return false
 }
 
+// スマホ・タブレットかどうかを判定
+const isMobile = () => {
+  const userAgent = navigator.userAgent.toLowerCase()
+  const isMobileDevice = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent)
+  const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+  return isMobileDevice || isTouchDevice
+}
+
 // 通知を送信
-export const sendNotification = (title, body) => {
-  console.log('通知送信試行:', { title, body, permission: Notification.permission })
+export const sendNotification = async (title, body) => {
+  console.log('通知送信試行:', { title, body, permission: Notification.permission, isMobile: isMobile() })
   
-  if (Notification.permission === 'granted') {
-    try {
-      // シンプルな通知システム
+  if (Notification.permission !== 'granted') {
+    console.log('通知許可がありません:', Notification.permission)
+    return
+  }
+
+  try {
+    // スマホ・タブレットの場合は最初からService Worker経由で通知
+    if (isMobile() && 'serviceWorker' in navigator) {
+      console.log('スマホ検出 - Service Worker通知を使用')
+      const registration = await navigator.serviceWorker.ready
+      await registration.showNotification(title, {
+        body,
+        icon: '/vite.svg',
+        badge: '/vite.svg',
+        requireInteraction: true,
+        vibrate: [200, 100, 200],
+        actions: [
+          {
+            action: 'open',
+            title: 'アプリを開く'
+          }
+        ]
+      })
+      console.log('Service Worker通知送信成功')
+    } else {
+      // PC・デスクトップの場合は通常の通知
+      console.log('PC検出 - 通常の通知を使用')
       new Notification(title, {
         body,
         icon: '/vite.svg'
       })
-      console.log('通知送信成功')
-    } catch (error) {
-      console.error('通知送信エラー:', error)
-      // スマホの場合はService Worker経由で再試行
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then((registration) => {
-          registration.showNotification(title, {
-            body,
-            icon: '/vite.svg'
-          })
-        }).catch((swError) => {
-          console.error('Service Worker通知エラー:', swError)
-        })
-      }
+      console.log('通常の通知送信成功')
     }
-  } else {
-    console.log('通知許可がありません:', Notification.permission)
+  } catch (error) {
+    console.error('通知送信エラー:', error)
   }
 }
