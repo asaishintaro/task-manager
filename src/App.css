@@ -223,3 +223,22 @@
 .test-notification-button:hover {
   background-color: #218838;
 }
+
+.notification-help {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.notification-help h3 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #856404;
+}
+
+.notification-help div {
+  margin-bottom: 0.25rem;
+  font-size: 0.875rem;
+}

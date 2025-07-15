@@ -19,6 +19,7 @@ function App() {
   const [error, setError] = useState(null)
   const [showDueDateInput, setShowDueDateInput] = useState(false)
   const [notificationStatus, setNotificationStatus] = useState('未確認')
+  const [browserInfo, setBrowserInfo] = useState('')
 
   // Firestoreからタスクをリアルタイムで取得
   useEffect(() => {
@@ -47,26 +48,76 @@ function App() {
 
   // 通知許可をリクエスト
   useEffect(() => {
+    // ブラウザ情報を取得
+    const userAgent = navigator.userAgent
+    let browser = 'Unknown'
+    if (userAgent.includes('Chrome')) browser = 'Chrome'
+    else if (userAgent.includes('Firefox')) browser = 'Firefox'
+    else if (userAgent.includes('Safari')) browser = 'Safari'
+    else if (userAgent.includes('Edge')) browser = 'Edge'
+    
+    setBrowserInfo(`${browser} - ${navigator.platform}`)
+    
+    // 通知サポート確認
+    if (!('Notification' in window)) {
+      setNotificationStatus('このブラウザは通知をサポートしていません')
+      return
+    }
+    
+    // 現在の許可状態を確認
+    const currentPermission = Notification.permission
+    setNotificationStatus(`現在の状態: ${currentPermission}`)
+    
+    // 許可をリクエスト
     requestNotificationPermission().then((granted) => {
       if (granted) {
         setNotificationStatus('許可済み')
       } else {
-        setNotificationStatus('拒否')
+        setNotificationStatus(`拒否されました (${Notification.permission})`)
       }
     })
   }, [])
 
   // 通知テスト機能
-  const testNotification = () => {
+  const testNotification = async () => {
+    console.log('通知テスト開始')
+    console.log('Notification.permission:', Notification.permission)
+    
     if (Notification.permission === 'granted') {
-      new Notification('テスト通知', {
-        body: '通知が正常に動作しています！',
-        icon: '/vite.svg'
-      })
-      setNotificationStatus('テスト送信済み')
+      try {
+        const notification = new Notification('テスト通知', {
+          body: '通知が正常に動作しています！',
+          icon: '/vite.svg',
+          requireInteraction: true
+        })
+        
+        notification.onclick = () => {
+          console.log('通知がクリックされました')
+        }
+        
+        notification.onshow = () => {
+          console.log('通知が表示されました')
+        }
+        
+        notification.onerror = (error) => {
+          console.error('通知エラー:', error)
+        }
+        
+        setNotificationStatus('テスト送信済み - 通知を確認してください')
+      } catch (error) {
+        console.error('通知作成エラー:', error)
+        setNotificationStatus('通知作成エラー: ' + error.message)
+      }
+    } else if (Notification.permission === 'default') {
+      // 再度許可をリクエスト
+      const permission = await Notification.requestPermission()
+      if (permission === 'granted') {
+        testNotification()
+      } else {
+        setNotificationStatus('通知許可が必要です')
+      }
     } else {
-      setNotificationStatus('許可が必要')
-      requestNotificationPermission()
+      setNotificationStatus('通知が拒否されています - ブラウザ設定を確認してください')
     }
   }
 
@@ -151,11 +202,32 @@ function App() {
       {error && <div className="error-message">{error}</div>}
       
       <div className="notification-status">
-        通知状態: {notificationStatus}
+        <div>
+          <div>ブラウザ: {browserInfo}</div>
+          <div>通知状態: {notificationStatus}</div>
+        </div>
         <button className="test-notification-button" onClick={testNotification}>
           通知テスト
         </button>
       </div>
+      
+      {Notification.permission === 'denied' && (
+        <div className="notification-help">
+          <h3>通知設定の手順</h3>
+          <div>
+            <strong>Chrome:</strong> アドレスバーの🔒アイコン → 通知 → 許可
+          </div>
+          <div>
+            <strong>Safari:</strong> Safari → 設定 → Webサイト → 通知
+          </div>
+          <div>
+            <strong>Firefox:</strong> アドレスバーの🛡️アイコン → 通知許可
+          </div>
+          <div>
+            <strong>スマホ:</strong> ブラウザ設定 → サイト設定 → 通知
+          </div>
+        </div>
+      )}
       <div className="task-input-container">
         <input 
           type="text" 
