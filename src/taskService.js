@@ -105,9 +105,29 @@ export const requestNotificationPermission = async () => {
 // 通知を送信
 export const sendNotification = (title, body) => {
   if (Notification.permission === 'granted') {
-    new Notification(title, {
-      body,
-      icon: '/vite.svg'
-    })
+    // Service Worker経由で通知を送信（PWA対応）
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification(title, {
+          body,
+          icon: '/vite.svg',
+          badge: '/vite.svg',
+          vibrate: [100, 50, 100],
+          requireInteraction: true,
+          actions: [
+            {
+              action: 'open',
+              title: 'アプリを開く'
+            }
+          ]
+        })
+      })
+    } else {
+      // 通常のブラウザ通知
+      new Notification(title, {
+        body,
+        icon: '/vite.svg'
+      })
+    }
   }
 }
