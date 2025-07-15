@@ -1,0 +1,69 @@
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc, 
+  onSnapshot, 
+  query, 
+  orderBy 
+} from 'firebase/firestore'
+import { db } from './firebase'
+
+const COLLECTION_NAME = 'tasks'
+
+// タスクをFirestoreに追加
+export const addTask = async (task) => {
+  try {
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+      ...task,
+      createdAt: new Date()
+    })
+    return docRef.id
+  } catch (error) {
+    console.error('タスクの追加に失敗しました:', error)
+    throw error
+  }
+}
+
+// タスクを更新
+export const updateTask = async (taskId, updates) => {
+  try {
+    const taskRef = doc(db, COLLECTION_NAME, taskId)
+    await updateDoc(taskRef, {
+      ...updates,
+      updatedAt: new Date()
+    })
+  } catch (error) {
+    console.error('タスクの更新に失敗しました:', error)
+    throw error
+  }
+}
+
+// タスクを削除
+export const removeTask = async (taskId) => {
+  try {
+    await deleteDoc(doc(db, COLLECTION_NAME, taskId))
+  } catch (error) {
+    console.error('タスクの削除に失敗しました:', error)
+    throw error
+  }
+}
+
+// リアルタイムでタスクを監視
+export const subscribeToTasks = (callback) => {
+  const q = query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'))
+  
+  return onSnapshot(q, (snapshot) => {
+    const tasks = []
+    snapshot.forEach((doc) => {
+      tasks.push({
+        id: doc.id,
+        ...doc.data()
+      })
+    })
+    callback(tasks)
+  }, (error) => {
+    console.error('タスクの監視に失敗しました:', error)
+  })
+}

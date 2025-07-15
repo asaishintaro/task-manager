@@ -4,7 +4,13 @@
       "Bash(gemini:*)",
       "Bash(git commit:*)",
       "Bash(npm install:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git config:*)",
+      "Bash(vercel:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git branch:*)",
+      "Bash(git remote add:*)",
+      "Bash(git push:*)"
     ],
     "deny": []
   }

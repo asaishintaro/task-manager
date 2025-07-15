@@ -104,3 +104,26 @@
 .delete-button:hover {
   background-color: #c82333;
 }
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 0.75rem 1rem;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
+}
