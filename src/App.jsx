@@ -18,6 +18,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showDueDateInput, setShowDueDateInput] = useState(false)
+  const [notificationStatus, setNotificationStatus] = useState('未確認')
 
   // Firestoreからタスクをリアルタイムで取得
   useEffect(() => {
@@ -25,15 +26,19 @@ function App() {
       setTasks(firestoreTasks)
       setLoading(false)
       
-      // 期限チェックと通知
-      const { overdueTasks, todayTasks } = checkDueTasks(firestoreTasks)
-      
-      if (overdueTasks.length > 0) {
-        sendNotification('期限超過のタスクがあります', `${overdueTasks.length}件のタスクが期限切れです`)
-      }
-      
-      if (todayTasks.length > 0) {
-        sendNotification('今日が期限のタスクがあります', `${todayTasks.length}件のタスクが今日期限です`)
+      // 期限チェックと通知（初回読み込み時は通知しない）
+      if (tasks.length > 0) {
+        const { overdueTasks, todayTasks } = checkDueTasks(firestoreTasks)
+        
+        if (overdueTasks.length > 0) {
+          console.log('期限切れタスク:', overdueTasks)
+          sendNotification('期限超過のタスクがあります', `${overdueTasks.length}件のタスクが期限切れです`)
+        }
+        
+        if (todayTasks.length > 0) {
+          console.log('今日期限タスク:', todayTasks)
+          sendNotification('今日が期限のタスクがあります', `${todayTasks.length}件のタスクが今日期限です`)
+        }
       }
     })
 
@@ -42,8 +47,28 @@ function App() {
 
   // 通知許可をリクエスト
   useEffect(() => {
-    requestNotificationPermission()
+    requestNotificationPermission().then((granted) => {
+      if (granted) {
+        setNotificationStatus('許可済み')
+      } else {
+        setNotificationStatus('拒否')
+      }
+    })
   }, [])
+
+  // 通知テスト機能
+  const testNotification = () => {
+    if (Notification.permission === 'granted') {
+      new Notification('テスト通知', {
+        body: '通知が正常に動作しています！',
+        icon: '/vite.svg'
+      })
+      setNotificationStatus('テスト送信済み')
+    } else {
+      setNotificationStatus('許可が必要')
+      requestNotificationPermission()
+    }
+  }
 
   // 通知サービスの初期化
   useEffect(() => {
@@ -124,6 +149,13 @@ function App() {
     <div className="app-container">
       <h1 className="app-title">タスク管理</h1>
       {error && <div className="error-message">{error}</div>}
+      
+      <div className="notification-status">
+        通知状態: {notificationStatus}
+        <button className="test-notification-button" onClick={testNotification}>
+          通知テスト
+        </button>
+      </div>
       <div className="task-input-container">
         <input 
           type="text" 

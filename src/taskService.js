@@ -104,30 +104,21 @@ export const requestNotificationPermission = async () => {
 
 // 通知を送信
 export const sendNotification = (title, body) => {
+  console.log('通知送信試行:', { title, body, permission: Notification.permission })
+  
   if (Notification.permission === 'granted') {
-    // Service Worker経由で通知を送信（PWA対応）
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.showNotification(title, {
-          body,
-          icon: '/vite.svg',
-          badge: '/vite.svg',
-          vibrate: [100, 50, 100],
-          requireInteraction: true,
-          actions: [
-            {
-              action: 'open',
-              title: 'アプリを開く'
-            }
-          ]
-        })
-      })
-    } else {
-      // 通常のブラウザ通知
+    try {
+      // まずは通常のブラウザ通知で確実に送信
       new Notification(title, {
         body,
-        icon: '/vite.svg'
+        icon: '/vite.svg',
+        requireInteraction: true
       })
+      console.log('通知送信成功')
+    } catch (error) {
+      console.error('通知送信エラー:', error)
     }
+  } else {
+    console.log('通知許可がありません:', Notification.permission)
   }
 }
