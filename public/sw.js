@@ -48,9 +48,10 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   const options = {
     body: event.data ? event.data.text() : 'タスクの期限が近づいています',
-    icon: '/vite.svg',
-    badge: '/vite.svg',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     vibrate: [100, 50, 100],
+    requireInteraction: true,
     data: {
       dateOfArrival: Date.now(),
       primaryKey: 1
@@ -59,12 +60,12 @@ self.addEventListener('push', (event) => {
       {
         action: 'open',
         title: 'アプリを開く',
-        icon: '/vite.svg'
+        icon: '/icon-192.png'
       },
       {
         action: 'close',
         title: '閉じる',
-        icon: '/vite.svg'
+        icon: '/icon-192.png'
       }
     ]
   }
@@ -128,8 +129,8 @@ async function checkTasksInBackground() {
     if (overdueTasks.length > 0) {
       await self.registration.showNotification('期限切れのタスクがあります！', {
         body: `${overdueTasks.length}件のタスクが期限切れです`,
-        icon: '/vite.svg',
-        badge: '/vite.svg',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
         vibrate: [200, 100, 200],
         requireInteraction: true,
         data: { url: '/' },
@@ -145,8 +146,8 @@ async function checkTasksInBackground() {
     if (todayTasks.length > 0) {
       await self.registration.showNotification('今日が期限のタスクがあります', {
         body: `${todayTasks.length}件のタスクが今日期限です`,
-        icon: '/vite.svg',
-        badge: '/vite.svg',
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
         vibrate: [200, 100, 200],
         requireInteraction: true,
         data: { url: '/' },

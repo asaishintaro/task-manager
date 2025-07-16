@@ -141,8 +141,8 @@ export const sendNotification = async (title, body) => {
 
   const options = {
     body,
-    icon: '/vite.svg',
-    badge: '/vite.svg',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     requireInteraction: true,
     vibrate: [200, 100, 200],
     data: { url: '/' }

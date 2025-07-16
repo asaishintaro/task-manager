@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Chrome通知デバッグツール</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #007bff;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+        }
+        .step h2 {
+            margin-top: 0;
+            color: #007bff;
+        }
+        .result {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .test-button {
+            background: #28a745;
+        }
+        .test-button:hover {
+            background: #218838;
+        }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-ok { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-error { background: #dc3545; }
+        .code-block {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Android Chrome通知デバッグツール</h1>
+        
+        <div class="step">
+            <h2>📱 システム情報</h2>
+            <button onclick="checkSystemInfo()">システム情報を確認</button>
+            <div id="systemInfo" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>🔔 通知許可状態</h2>
+            <button onclick="checkNotificationPermission()">通知許可を確認</button>
+            <button onclick="requestNotificationPermission()">通知許可を要求</button>
+            <div id="permissionStatus" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>⚙️ Service Worker状態</h2>
+            <button onclick="checkServiceWorkerStatus()">Service Worker状態を確認</button>
+            <div id="serviceWorkerStatus" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>📱 PWA状態</h2>
+            <button onclick="checkPWAStatus()">PWA状態を確認</button>
+            <div id="pwaStatus" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>🎨 アイコンファイル確認</h2>
+            <button onclick="checkIconFiles()">アイコンファイルを確認</button>
+            <div id="iconStatus" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>🧪 通知テスト</h2>
+            <button class="test-button" onclick="testBasicNotification()">基本通知テスト</button>
+            <button class="test-button" onclick="testServiceWorkerNotification()">Service Worker通知テスト</button>
+            <div id="testResults" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>📊 詳細デバッグ情報</h2>
+            <button onclick="generateDebugReport()">デバッグレポートを生成</button>
+            <div id="debugReport" class="result"></div>
+        </div>
+
+        <div class="step">
+            <h2>💡 推奨アクション</h2>
+            <div id="recommendations" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        function addResult(containerId, content, type = 'info') {
+            const container = document.getElementById(containerId);
+            const statusClass = type === 'success' ? 'status-ok' : 
+                              type === 'error' ? 'status-error' : 
+                              type === 'warning' ? 'status-warning' : 'status-ok';
+            
+            container.innerHTML = `
+                <div class="${type}">
+                    <span class="status-indicator ${statusClass}"></span>
+                    ${content}
+                </div>
+            `;
+        }
+
+        function checkSystemInfo() {
+            const info = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                cookieEnabled: navigator.cookieEnabled,
+                language: navigator.language,
+                onLine: navigator.onLine,
+                touchPoints: navigator.maxTouchPoints,
+                screenWidth: screen.width,
+                screenHeight: screen.height,
+                windowWidth: window.innerWidth,
+                windowHeight: window.innerHeight,
+                isSecureContext: window.isSecureContext,
+                isHTTPS: location.protocol === 'https:'
+            };
+
+            let html = '<div class="debug-info">';
+            html += '<h3>🔍 システム情報</h3>';
+            for (const [key, value] of Object.entries(info)) {
+                html += `<strong>${key}:</strong> ${value}<br>`;
+            }
+            html += '</div>';
+
+            // モバイル判定
+            const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+            const isAndroid = /android/i.test(navigator.userAgent.toLowerCase());
+            
+            html += `<div class="debug-info">`;
+            html += `<h3>📱 デバイス判定</h3>`;
+            html += `<strong>モバイル:</strong> ${isMobile ? '✅ はい' : '❌ いいえ'}<br>`;
+            html += `<strong>Android:</strong> ${isAndroid ? '✅ はい' : '❌ いいえ'}<br>`;
+            html += `</div>`;
+
+            addResult('systemInfo', html, 'info');
+        }
+
+        function checkNotificationPermission() {
+            if (!('Notification' in window)) {
+                addResult('permissionStatus', '❌ このブラウザは通知をサポートしていません', 'error');
+                return;
+            }
+
+            const permission = Notification.permission;
+            let type = 'info';
+            let message = '';
+
+            switch (permission) {
+                case 'granted':
+                    type = 'success';
+                    message = '✅ 通知許可が取得されています';
+                    break;
+                case 'denied':
+                    type = 'error';
+                    message = '❌ 通知許可が拒否されています。ブラウザ設定で許可してください。';
+                    break;
+                case 'default':
+                    type = 'warning';
+                    message = '⚠️ 通知許可がまだ要求されていません';
+                    break;
+            }
+
+            addResult('permissionStatus', message, type);
+        }
+
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                addResult('permissionStatus', '❌ このブラウザは通知をサポートしていません', 'error');
+                return;
+            }
+
+            try {
+                const permission = await Notification.requestPermission();
+                
+                if (permission === 'granted') {
+                    addResult('permissionStatus', '✅ 通知許可が取得されました！', 'success');
+                } else {
+                    addResult('permissionStatus', '❌ 通知許可が拒否されました', 'error');
+                }
+            } catch (error) {
+                addResult('permissionStatus', `❌ 通知許可の要求中にエラーが発生: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkServiceWorkerStatus() {
+            if (!('serviceWorker' in navigator)) {
+                addResult('serviceWorkerStatus', '❌ Service Workerがサポートされていません', 'error');
+                return;
+            }
+
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                const isActive = registration.active !== null;
+                const state = registration.active ? registration.active.state : 'none';
+                
+                let html = '<div class="debug-info">';
+                html += '<h3>⚙️ Service Worker状態</h3>';
+                html += `<strong>登録状態:</strong> ${registration ? '✅ 登録済み' : '❌ 未登録'}<br>`;
+                html += `<strong>アクティブ状態:</strong> ${isActive ? '✅ アクティブ' : '❌ 非アクティブ'}<br>`;
+                html += `<strong>状態:</strong> ${state}<br>`;
+                html += `<strong>スコープ:</strong> ${registration.scope}<br>`;
+                html += `<strong>showNotification対応:</strong> ${'showNotification' in ServiceWorkerRegistration.prototype ? '✅ はい' : '❌ いいえ'}<br>`;
+                html += '</div>';
+
+                addResult('serviceWorkerStatus', html, isActive ? 'success' : 'warning');
+            } catch (error) {
+                addResult('serviceWorkerStatus', `❌ Service Worker確認中にエラー: ${error.message}`, 'error');
+            }
+        }
+
+        function checkPWAStatus() {
+            let html = '<div class="debug-info">';
+            html += '<h3>📱 PWA状態</h3>';
+            
+            // manifest.jsonの確認
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            html += `<strong>manifest.json:</strong> ${manifestLink ? '✅ 設定済み' : '❌ 未設定'}<br>`;
+            
+            // PWAインストール状態
+            const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+            html += `<strong>PWAモード:</strong> ${isStandalone ? '✅ インストール済み' : '❌ ブラウザモード'}<br>`;
+            
+            // セキュアコンテキスト
+            html += `<strong>セキュアコンテキスト:</strong> ${window.isSecureContext ? '✅ はい' : '❌ いいえ'}<br>`;
+            
+            html += '</div>';
+
+            addResult('pwaStatus', html, 'info');
+        }
+
+        async function checkIconFiles() {
+            const icons = [
+                { path: '/icon-192.png', size: '192x192' },
+                { path: '/icon-512.png', size: '512x512' },
+                { path: '/vite.svg', size: 'SVG' }
+            ];
+
+            let html = '<div class="debug-info">';
+            html += '<h3>🎨 アイコンファイル確認</h3>';
+
+            for (const icon of icons) {
+                try {
+                    const response = await fetch(icon.path);
+                    const status = response.ok ? '✅ 存在' : '❌ 不在';
+                    const type = response.ok ? 'success' : 'error';
+                    html += `<strong>${icon.path} (${icon.size}):</strong> ${status}<br>`;
+                } catch (error) {
+                    html += `<strong>${icon.path} (${icon.size}):</strong> ❌ エラー<br>`;
+                }
+            }
+
+            html += '</div>';
+            addResult('iconStatus', html, 'info');
+        }
+
+        async function testBasicNotification() {
+            if (Notification.permission !== 'granted') {
+                addResult('testResults', '❌ 通知許可が必要です', 'error');
+                return;
+            }
+
+            try {
+                const notification = new Notification('基本通知テスト', {
+                    body: 'これは基本的な通知のテストです',
+                    icon: '/icon-192.png'
+                });
+                
+                addResult('testResults', '✅ 基本通知が送信されました', 'success');
+                
+                setTimeout(() => {
+                    notification.close();
+                }, 5000);
+            } catch (error) {
+                addResult('testResults', `❌ 基本通知エラー: ${error.message}`, 'error');
+            }
+        }
+
+        async function testServiceWorkerNotification() {
+            if (Notification.permission !== 'granted') {
+                addResult('testResults', '❌ 通知許可が必要です', 'error');
+                return;
+            }
+
+            if (!('serviceWorker' in navigator)) {
+                addResult('testResults', '❌ Service Workerがサポートされていません', 'error');
+                return;
+            }
+
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                await registration.showNotification('Service Worker通知テスト', {
+                    body: 'これはService Worker経由の通知テストです',
+                    icon: '/icon-192.png',
+                    badge: '/icon-192.png',
+                    requireInteraction: true,
+                    vibrate: [200, 100, 200],
+                    actions: [
+                        {
+                            action: 'open',
+                            title: 'アプリを開く'
+                        }
+                    ]
+                });
+                
+                addResult('testResults', '✅ Service Worker通知が送信されました', 'success');
+            } catch (error) {
+                addResult('testResults', `❌ Service Worker通知エラー: ${error.message}`, 'error');
+            }
+        }
+
+        async function generateDebugReport() {
+            let report = '<div class="code-block">';
+            report += '<h3>📊 完全デバッグレポート</h3>';
+            
+            // システム情報
+            report += '<h4>システム情報:</h4>';
+            report += `User Agent: ${navigator.userAgent}<br>`;
+            report += `Platform: ${navigator.platform}<br>`;
+            report += `Language: ${navigator.language}<br>`;
+            report += `Online: ${navigator.onLine}<br>`;
+            report += `Secure Context: ${window.isSecureContext}<br>`;
+            report += `HTTPS: ${location.protocol === 'https:'}<br><br>`;
+            
+            // 通知サポート
+            report += '<h4>通知サポート:</h4>';
+            report += `Notification in window: ${'Notification' in window}<br>`;
+            report += `Notification permission: ${Notification.permission}<br>`;
+            report += `ServiceWorker in navigator: ${'serviceWorker' in navigator}<br>`;
+            report += `showNotification support: ${'showNotification' in ServiceWorkerRegistration.prototype}<br><br>`;
+            
+            // Service Worker状態
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    report += '<h4>Service Worker:</h4>';
+                    report += `Registration: ${registration ? 'OK' : 'None'}<br>`;
+                    report += `Active: ${registration.active ? 'Yes' : 'No'}<br>`;
+                    report += `State: ${registration.active ? registration.active.state : 'none'}<br>`;
+                    report += `Scope: ${registration.scope}<br><br>`;
+                } catch (error) {
+                    report += `<h4>Service Worker Error:</h4>${error.message}<br><br>`;
+                }
+            }
+            
+            // PWA状態
+            const manifestLink = document.querySelector('link[rel="manifest"]');
+            const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+            report += '<h4>PWA状態:</h4>';
+            report += `Manifest: ${manifestLink ? 'Present' : 'Missing'}<br>`;
+            report += `Standalone: ${isStandalone}<br><br>`;
+            
+            // デバイス判定
+            const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
+            const isAndroid = /android/i.test(navigator.userAgent.toLowerCase());
+            report += '<h4>デバイス判定:</h4>';
+            report += `Mobile: ${isMobile}<br>`;
+            report += `Android: ${isAndroid}<br>`;
+            
+            report += '</div>';
+            
+            addResult('debugReport', report, 'info');
+            
+            // 推奨アクション
+            updateRecommendations();
+        }
+
+        function updateRecommendations() {
+            let recommendations = '<div class="debug-info">';
+            recommendations += '<h3>💡 推奨アクション</h3>';
+            
+            if (Notification.permission !== 'granted') {
+                recommendations += '🔔 通知許可を取得してください<br>';
+            }
+            
+            if (!window.isSecureContext) {
+                recommendations += '🔒 HTTPSでアクセスしてください<br>';
+            }
+            
+            recommendations += '📱 アイコンファイル（192x192, 512x512）を確認してください<br>';
+            recommendations += '⚙️ Service Workerの状態を確認してください<br>';
+            recommendations += '🧪 両方の通知テストを実行してください<br>';
+            recommendations += '📊 デバッグレポートを生成して詳細を確認してください<br>';
+            
+            recommendations += '</div>';
+            
+            addResult('recommendations', recommendations, 'info');
+        }
+
+        // ページロード時に基本情報を表示
+        window.addEventListener('load', () => {
+            checkSystemInfo();
+            checkNotificationPermission();
+            updateRecommendations();
+        });
+    </script>
+</body>
+</html>
