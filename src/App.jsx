@@ -7,7 +7,8 @@ import {
   subscribeToTasks,
   checkDueTasks,
   requestNotificationPermission,
-  sendNotification
+  sendNotification,
+  updateServiceWorkerTasksCache
 } from './taskService'
 import notificationService from './notificationService'
 
@@ -26,6 +27,9 @@ function App() {
     const unsubscribe = subscribeToTasks(async (firestoreTasks) => {
       setTasks(firestoreTasks)
       setLoading(false)
+      
+      // Service Workerにタスクデータを送信
+      await updateServiceWorkerTasksCache(firestoreTasks)
       
       // 期限チェックと通知（初回読み込み時は通知しない）
       if (tasks.length > 0) {

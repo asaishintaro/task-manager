@@ -10,6 +10,21 @@ import {
 } from 'firebase/firestore'
 import { db } from './firebase'
 
+// Service Workerにタスクデータを送信
+export const updateServiceWorkerTasksCache = async (tasks) => {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.ready
+      registration.active?.postMessage({
+        type: 'UPDATE_TASKS_CACHE',
+        data: { tasks }
+      })
+    } catch (error) {
+      console.error('Service Workerへのタスクデータ送信エラー:', error)
+    }
+  }
+}
+
 const COLLECTION_NAME = 'tasks'
 
 // タスクをFirestoreに追加
@@ -110,26 +125,44 @@ const isMobile = () => {
   return isMobileDevice || isTouchDevice
 }
 
-// 通知を送信
+// 通知を送信（プラットフォーム対応版）
 export const sendNotification = async (title, body) => {
   console.log('通知送信試行:', { title, body, permission: Notification.permission, isMobile: isMobile() })
   
+  if (!('Notification' in window)) {
+    console.log('このブラウザは通知をサポートしていません')
+    return
+  }
+
   if (Notification.permission !== 'granted') {
     console.log('通知許可がありません:', Notification.permission)
     return
   }
 
+  const options = {
+    body,
+    icon: '/vite.svg',
+    badge: '/vite.svg',
+    requireInteraction: true,
+    vibrate: [200, 100, 200],
+    data: { url: '/' }
+  }
+
   try {
-    // スマホ・タブレットの場合は最初からService Worker経由で通知
-    if (isMobile() && 'serviceWorker' in navigator) {
-      console.log('スマホ検出 - Service Worker通知を使用')
+    // まずは通常の通知を試行
+    if (!isMobile()) {
+      console.log('PC検出 - 通常の通知を使用')
+      new Notification(title, options)
+      console.log('通常の通知送信成功')
+      return
+    }
+    
+    // スマホの場合は最初からService Worker経由で通知
+    console.log('スマホ検出 - Service Worker通知を使用')
+    if ('serviceWorker' in navigator && 'showNotification' in ServiceWorkerRegistration.prototype) {
       const registration = await navigator.serviceWorker.ready
       await registration.showNotification(title, {
-        body,
-        icon: '/vite.svg',
-        badge: '/vite.svg',
-        requireInteraction: true,
-        vibrate: [200, 100, 200],
+        ...options,
         actions: [
           {
             action: 'open',
@@ -139,15 +172,21 @@ export const sendNotification = async (title, body) => {
       })
       console.log('Service Worker通知送信成功')
     } else {
-      // PC・デスクトップの場合は通常の通知
-      console.log('PC検出 - 通常の通知を使用')
-      new Notification(title, {
-        body,
-        icon: '/vite.svg'
-      })
-      console.log('通常の通知送信成功')
+      throw new Error('Service Worker通知がサポートされていません')
     }
   } catch (error) {
     console.error('通知送信エラー:', error)
+    
+    // フォールバック: Service Worker経由で再試行
+    if ('serviceWorker' in navigator) {
+      try {
+        console.log('フォールバック: Service Worker通知を再試行')
+        const registration = await navigator.serviceWorker.ready
+        await registration.showNotification(title, options)
+        console.log('フォールバック通知送信成功')
+      } catch (fallbackError) {
+        console.error('フォールバック通知も失敗:', fallbackError)
+      }
+    }
   }
 }
