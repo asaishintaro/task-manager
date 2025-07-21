@@ -131,7 +131,9 @@ const isMobile = () => {
   return isMobileDevice || isTouchDevice
 }
 
-// 個別タスクの期限通知をスケジュール（FCM版）
+import simpleNotificationService from './simpleNotificationService.js'
+
+// 個別タスクの期限通知をスケジュール（シンプル版）
 const scheduledNotifications = new Map()
 
 export const scheduleTaskNotification = async (task) => {
@@ -155,48 +157,33 @@ export const scheduleTaskNotification = async (task) => {
 
   console.log(`タスク "${task.text}" の通知を${Math.floor(timeUntilDue/1000/60)}分後にスケジュール`)
 
-  // 期限時刻にService Worker通知を送信（AndroidとPC両対応）
+  // 期限時刻にシンプル通知を送信（音声+バイブ+ポップアップ）
   const timeoutId = setTimeout(async () => {
-    console.log(`タスクの期限通知を送信: "${task.text}"`)
+    console.log(`🎯 タスク期限通知実行: "${task.text}"`)
     
-    // Service Worker経由で確実に通知
-    if ('serviceWorker' in navigator) {
-      try {
-        const registration = await navigator.serviceWorker.ready
-        await registration.showNotification('タスクの期限です！', {
-          body: `"${task.text}" の期限になりました`,
-          icon: '/icon-192.png',
-          badge: '/icon-192.png',
-          tag: `task-due-${task.id}`,
-          data: { 
-            taskId: task.id,
-            type: 'task-due',
-            url: '/' 
-          },
-          actions: [
-            { action: 'open', title: 'アプリを開く' },
-            { action: 'complete', title: '完了にする' },
-            { action: 'dismiss', title: '閉じる' }
-          ],
-          requireInteraction: true,
-          vibrate: [200, 100, 200, 100, 200]
-        })
-        console.log('Service Worker通知送信成功')
-      } catch (error) {
-        console.error('Service Worker通知送信エラー:', error)
-        // フォールバック
-        await sendNotification(
-          'タスクの期限です！',
-          `"${task.text}" の期限になりました`
-        )
+    // シンプル通知システムで確実に通知
+    await simpleNotificationService.showTaskDueNotification(task.text, {
+      onAction: (action) => {
+        console.log(`通知アクション: ${action} for task: ${task.id}`)
+        
+        switch (action) {
+          case 'complete':
+            // タスクを完了にする（実装は後で）
+            console.log('タスクを完了にします')
+            break
+          case 'snooze':
+            // 5分後に再通知
+            setTimeout(() => {
+              simpleNotificationService.showTaskDueNotification(task.text)
+            }, 5 * 60 * 1000)
+            console.log('5分後に再通知します')
+            break
+          case 'dismiss':
+            console.log('通知を閉じます')
+            break
+        }
       }
-    } else {
-      // フォールバック
-      await sendNotification(
-        'タスクの期限です！',
-        `"${task.text}" の期限になりました`
-      )
-    }
+    })
     
     scheduledNotifications.delete(task.id)
   }, timeUntilDue)

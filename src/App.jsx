@@ -15,6 +15,7 @@ import {
 } from './taskService'
 import notificationService from './notificationService'
 import pushNotificationService from './services/pushNotificationService'
+import simpleNotificationService from './simpleNotificationService'
 
 function App() {
   const [tasks, setTasks] = useState([])
@@ -566,84 +567,116 @@ function App() {
         <div className="empty-state">タスクがありません。新しいタスクを追加してください。</div>
       )}
       
-      {/* 開発用テストボタン */}
-      <div className="debug-section" style={{ margin: '20px 0', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', fontSize: '14px' }}>
-        <h4>🔧 通知テスト（開発用）</h4>
-        <button 
-          onClick={async () => {
-            try {
-              if ('serviceWorker' in navigator) {
-                const registration = await navigator.serviceWorker.ready
-                await registration.showNotification('📋 タスク通知テスト', {
-                  body: 'これは実際のタスク期限通知です。正常に動作していれば成功！',
-                  icon: '/icon-192.png',
-                  badge: '/icon-192.png',
-                  tag: 'test-task-notification',
-                  data: { type: 'task-test', url: '/' },
-                  actions: [
-                    { action: 'open', title: 'アプリを開く' },
-                    { action: 'dismiss', title: '閉じる' }
-                  ],
-                  requireInteraction: true,
-                  vibrate: [200, 100, 200]
-                })
-                console.log('タスク通知テスト送信成功')
-              }
-            } catch (error) {
-              console.error('タスク通知テストエラー:', error)
-            }
-          }}
-          style={{ 
-            padding: '8px 16px', 
-            backgroundColor: '#28a745', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '5px',
-            marginRight: '10px',
-            cursor: 'pointer'
-          }}
-        >
-          📋 タスク通知テスト
-        </button>
+      {/* シンプル通知テストボタン */}
+      <div className="simple-notification-section" style={{ margin: '20px 0', padding: '15px', backgroundColor: '#e8f5e8', borderRadius: '8px', fontSize: '14px' }}>
+        <h4>🔔 シンプル通知システム（確実動作！）</h4>
         
-        <button 
-          onClick={async () => {
-            // 30秒後にテスト通知
-            setTimeout(async () => {
-              if ('serviceWorker' in navigator) {
-                const registration = await navigator.serviceWorker.ready
-                await registration.showNotification('⏰ 期限通知テスト', {
-                  body: 'テスト用タスクの期限になりました！',
-                  icon: '/icon-192.png',
-                  badge: '/icon-192.png',
-                  tag: 'test-due-notification',
-                  data: { type: 'due-test', taskId: 'test-task', url: '/' },
-                  actions: [
-                    { action: 'open', title: 'アプリを開く' },
-                    { action: 'complete', title: '完了にする' },
-                    { action: 'dismiss', title: '閉じる' }
-                  ],
-                  requireInteraction: true,
-                  vibrate: [200, 100, 200, 100, 200]
-                })
-              }
-            }, 30000) // 30秒後
-            alert('30秒後にテスト期限通知を送信します')
-          }}
-          style={{ 
-            padding: '8px 16px', 
-            backgroundColor: '#dc3545', 
-            color: 'white', 
-            border: 'none', 
-            borderRadius: '5px',
-            cursor: 'pointer'
-          }}
-        >
-          ⏰ 30秒後テスト通知
-        </button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+          <button 
+            onClick={() => simpleNotificationService.playSound()}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#28a745', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            🔔 音声テスト
+          </button>
+          
+          <button 
+            onClick={() => simpleNotificationService.vibrate()}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#17a2b8', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            📳 バイブテスト
+          </button>
+          
+          <button 
+            onClick={() => simpleNotificationService.showPopup('📱 テスト通知', 'シンプルなポップアップ通知です！', { type: 'success' })}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#ffc107', 
+              color: '#212529', 
+              border: 'none', 
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            💬 ポップアップテスト
+          </button>
+        </div>
         
-        <div style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
-          通知許可状況: {notificationStatus}
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+          <button 
+            onClick={() => simpleNotificationService.showFullNotification('🎯 フル通知テスト', '音声+バイブ+ポップアップのテストです！')}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#dc3545', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            🎯 フル通知テスト
+          </button>
+          
+          <button 
+            onClick={() => simpleNotificationService.showTaskDueNotification('重要な会議の準備')}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#6f42c1', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            ⏰ タスク期限通知テスト
+          </button>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button 
+            onClick={() => {
+              setTimeout(() => {
+                simpleNotificationService.showTaskDueNotification('10秒テスト用タスク')
+              }, 10000)
+              simpleNotificationService.showPopup('⏰ 10秒後通知', '10秒後にタスク期限通知を送信します', { type: 'info', duration: 3000 })
+            }}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: '#fd7e14', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            ⏱️ 10秒後テスト
+          </button>
+          
+          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px' }}>
+            <input 
+              type="checkbox" 
+              checked={simpleNotificationService.isEnabled}
+              onChange={(e) => simpleNotificationService.setEnabled(e.target.checked)}
+            />
+            通知有効
+          </label>
+        </div>
+        
+        <div style={{ marginTop: '10px', fontSize: '11px', color: '#666' }}>
+          💡 このシステムは通知許可不要で確実に動作します（音声+バイブ+ポップアップ）
         </div>
       </div>
     </div>
