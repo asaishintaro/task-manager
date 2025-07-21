@@ -30,12 +30,18 @@ const COLLECTION_NAME = 'tasks'
 // タスクをFirestoreに追加
 export const addTask = async (task) => {
   try {
-    const docRef = await addDoc(collection(db, COLLECTION_NAME), {
+    const taskData = {
       ...task,
       createdAt: new Date(),
       dueDate: task.dueDate || null
-    })
-    return docRef.id
+    }
+    const docRef = await addDoc(collection(db, COLLECTION_NAME), taskData)
+    
+    // 追加されたタスクのデータを返す
+    return {
+      id: docRef.id,
+      ...taskData
+    }
   } catch (error) {
     console.error('タスクの追加に失敗しました:', error)
     throw error
@@ -123,6 +129,97 @@ const isMobile = () => {
   const isMobileDevice = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent)
   const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
   return isMobileDevice || isTouchDevice
+}
+
+// 個別タスクの期限通知をスケジュール（FCM版）
+const scheduledNotifications = new Map()
+
+export const scheduleTaskNotification = async (task) => {
+  if (!task.dueDate || task.completed) {
+    return
+  }
+
+  // 既存の通知をキャンセル
+  if (scheduledNotifications.has(task.id)) {
+    clearTimeout(scheduledNotifications.get(task.id))
+    scheduledNotifications.delete(task.id)
+  }
+
+  const now = new Date()
+  const timeUntilDue = task.dueDate.getTime() - now.getTime()
+  
+  // 期限が過去の場合はスケジュールしない
+  if (timeUntilDue <= 0) {
+    return
+  }
+
+  console.log(`タスク "${task.text}" の通知を${Math.floor(timeUntilDue/1000/60)}分後にスケジュール`)
+
+  // 期限時刻にService Worker通知を送信（AndroidとPC両対応）
+  const timeoutId = setTimeout(async () => {
+    console.log(`タスクの期限通知を送信: "${task.text}"`)
+    
+    // Service Worker経由で確実に通知
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready
+        await registration.showNotification('タスクの期限です！', {
+          body: `"${task.text}" の期限になりました`,
+          icon: '/icon-192.png',
+          badge: '/icon-192.png',
+          tag: `task-due-${task.id}`,
+          data: { 
+            taskId: task.id,
+            type: 'task-due',
+            url: '/' 
+          },
+          actions: [
+            { action: 'open', title: 'アプリを開く' },
+            { action: 'complete', title: '完了にする' },
+            { action: 'dismiss', title: '閉じる' }
+          ],
+          requireInteraction: true,
+          vibrate: [200, 100, 200, 100, 200]
+        })
+        console.log('Service Worker通知送信成功')
+      } catch (error) {
+        console.error('Service Worker通知送信エラー:', error)
+        // フォールバック
+        await sendNotification(
+          'タスクの期限です！',
+          `"${task.text}" の期限になりました`
+        )
+      }
+    } else {
+      // フォールバック
+      await sendNotification(
+        'タスクの期限です！',
+        `"${task.text}" の期限になりました`
+      )
+    }
+    
+    scheduledNotifications.delete(task.id)
+  }, timeUntilDue)
+
+  scheduledNotifications.set(task.id, timeoutId)
+}
+
+export const cancelTaskNotification = (taskId) => {
+  if (scheduledNotifications.has(taskId)) {
+    clearTimeout(scheduledNotifications.get(taskId))
+    scheduledNotifications.delete(taskId)
+    console.log(`タスク ${taskId} の通知をキャンセルしました`)
+  }
+}
+
+// 全ての通知をスケジュール（アプリ起動時に呼び出し）
+export const scheduleAllTaskNotifications = (tasks) => {
+  console.log(`${tasks.length}個のタスクの通知をスケジュール中...`)
+  tasks.forEach(task => {
+    if (task.dueDate && !task.completed) {
+      scheduleTaskNotification(task)
+    }
+  })
 }
 
 // 通知を送信（プラットフォーム対応版）

@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore } from 'firebase/firestore'
+import { getMessaging, isSupported } from 'firebase/messaging'
 
 // Firebase設定
 const firebaseConfig = {
@@ -16,3 +17,19 @@ const app = initializeApp(firebaseConfig)
 
 // Firestore初期化
 export const db = getFirestore(app)
+
+// Firebase Messaging動的初期化
+export const getMessagingInstance = async () => {
+  try {
+    if (await isSupported()) {
+      return getMessaging(app)
+    }
+    return null
+  } catch (error) {
+    console.warn('Firebase Messaging初期化エラー:', error)
+    return null
+  }
+}
+
+// VAPID公開鍵（実際の値は後で設定）
+export const VAPID_KEY = 'BKxqiQQ3vP3X_PBXKj8GyzNJJxVYHfB1jK2LJY8mH9PzY5h4H3w7C2tLVkKjWxGmR8vF2gF9sA3pJqY2zB4vKlE'

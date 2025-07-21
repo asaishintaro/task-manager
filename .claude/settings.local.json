@@ -12,7 +12,9 @@
       "Bash(git remote add:*)",
       "Bash(git push:*)",
       "mcp__ide__executeCode",
-      "Bash(start icon-generator.html)"
+      "Bash(start icon-generator.html)",
+      "Bash(npm run dev:*)",
+      "WebFetch(domain:zenn.dev)"
     ],
     "deny": []
   }
